@@ -9,66 +9,67 @@
 </head>
 
 <body>
-    <h1>Forge Calculator</h1>
+    <main>
+        <h1>Forge Calculator</h1>
 
-    <!-- ORE ROW 1 -->
-    <div class="ore-input-row">
-        <div class="input-wrapper">
-            <input type="text" id="name1" class="ore-search" placeholder="Select Ore #1">
-            <button class="clear-btn" data-target="name1">×</button>
+        <!-- ORE ROWS -->
+        <div class="ore-input-row">
+            <div class="input-wrapper">
+                <input type="text" id="name1" class="ore-search" placeholder="Select Ore #1">
+                <button class="clear-btn" data-target="name1">×</button>
+            </div>
+            <input type="number" id="amt1" placeholder="Amount #1">
+            <ul class="ore-options" id="options1"></ul>
         </div>
-        <input type="number" id="amt1" placeholder="Amount #1">
-        <ul class="ore-options" id="options1"></ul>
-    </div>
 
-    <!-- ORE ROW 2 -->
-    <div class="ore-input-row">
-        <div class="input-wrapper">
-            <input type="text" id="name2" class="ore-search" placeholder="Select Ore #2">
-            <button class="clear-btn" data-target="name2">×</button>
+        <div class="ore-input-row">
+            <div class="input-wrapper">
+                <input type="text" id="name2" class="ore-search" placeholder="Select Ore #2">
+                <button class="clear-btn" data-target="name2">×</button>
+            </div>
+            <input type="number" id="amt2" placeholder="Amount #2">
+            <ul class="ore-options" id="options2"></ul>
         </div>
-        <input type="number" id="amt2" placeholder="Amount #2">
-        <ul class="ore-options" id="options2"></ul>
-    </div>
 
-    <!-- ORE ROW 3 -->
-    <div class="ore-input-row">
-        <div class="input-wrapper">
-            <input type="text" id="name3" class="ore-search" placeholder="Select Ore #3">
-            <button class="clear-btn" data-target="name3">×</button>
+        <div class="ore-input-row">
+            <div class="input-wrapper">
+                <input type="text" id="name3" class="ore-search" placeholder="Select Ore #3">
+                <button class="clear-btn" data-target="name3">×</button>
+            </div>
+            <input type="number" id="amt3" placeholder="Amount #3">
+            <ul class="ore-options" id="options3"></ul>
         </div>
-        <input type="number" id="amt3" placeholder="Amount #3">
-        <ul class="ore-options" id="options3"></ul>
-    </div>
 
-    <!-- ORE ROW 4 -->
-    <div class="ore-input-row">
-        <div class="input-wrapper">
-            <input type="text" id="name4" class="ore-search" placeholder="Select Ore #4">
-            <button class="clear-btn" data-target="name4">×</button>
+        <div class="ore-input-row">
+            <div class="input-wrapper">
+                <input type="text" id="name4" class="ore-search" placeholder="Select Ore #4">
+                <button class="clear-btn" data-target="name4">×</button>
+            </div>
+            <input type="number" id="amt4" placeholder="Amount #4">
+            <ul class="ore-options" id="options4"></ul>
         </div>
-        <input type="number" id="amt4" placeholder="Amount #4">
-        <ul class="ore-options" id="options4"></ul>
-    </div>
 
-    <div
-        style="margin: 20px auto; width: 250px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; color: black; text-align: center;">
-        Threw this in last moment,
-        @Otakusonline with bug's
-        so I can fix them when I wake up.
-    </div>
+        <br>
+        <label for="craft_type">Type:</label>
+        <select id="craft_type">
+            <option value="Weapon">Weapon</option>
+            <option value="Armor">Armor</option>
+        </select>
 
-    <br>
-    <label for="craft_type">Type:</label>
-    <select id="craft_type">
-        <option value="Weapon">Weapon</option>
-        <option value="Armor">Armor</option>
-    </select>
+        <br><br>
+        <button id="calculateBtn">Calculate</button>
 
-    <br><br>
-    <button id="calculateBtn">Calculate</button>
+        <h2 id="result"></h2>
+    </main>
 
-    <h2 id="result"></h2>
+    <aside id="update-log">
+        <h2>Update Log</h2>
+        <ul>
+            <li><strong>2025-11-29:</strong> Fixed Multi-Trait Scaling and Merged Output to 1 line per ore type..</li>
+            <li><strong>2025-11-29:</strong> V1.0 Release of Calculator, Barebone No Styling. Multi Trait Scaling broken.</li>
+            <li>@Otakusonline With Bug Information.</li>
+        </ul>
+    </aside>
 
     <script>
         let ores = {};
@@ -162,11 +163,6 @@
             return y / 100;
         }
 
-        // Helper to calculate individual trait value
-        function calculateTraitValue(maxStat, multiplier, oreAmount) {
-            return (maxStat * multiplier * oreAmount).toFixed(2);
-        }
-
         function getItemChancesWithTraits(selectedOres, craftType = "Weapon") {
             const oddsDict = craftType === "Weapon" ? weaponOdds : armorOdds;
             const combinedMultiplier = calculateCombinedMultiplier(selectedOres);
@@ -200,7 +196,7 @@
                     const v1 = (transferredFraction * t1.maxStat).toFixed(2);
                     let line = `${v1}% ${t1.description}`;
 
-                    // Merge sentence-style traits (like "with")
+                    // Merge sentence-style traits (like "with", "of", etc.)
                     let shouldMerge = t1.description.trim().match(/(with|of|for|per|to|in)$/i)
                         && oreData.traits[i + 1] && typeof oreData.traits[i + 1].maxStat === "number";
 
@@ -298,6 +294,7 @@
             document.getElementById("result").innerText = output;
         });
     </script>
+    </main>
 </body>
 
 </html>
