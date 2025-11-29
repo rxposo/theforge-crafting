@@ -274,7 +274,7 @@
         "multiplier": 4.5,
         "traitType": "Weapon",
         "trait": {
-            "description": "Burn Chance on Weapons (Might be Missing %)",
+            "description": " Burn Damage on Weapons with 30% Chance",
             "maxStat": 20
         }
     },
@@ -283,7 +283,7 @@
         "multiplier": 5.0,
         "traitType": "Weapon",
         "trait": {
-            "description": "AOE Explosion on Weapons (Might be Missing %)",
+            "description": "AOE Explosion on Weapons with 35% Chance",
             "maxStat": 50
         }
     },
@@ -301,8 +301,8 @@
         "multiplier": 5.5,
         "traitType": "Armor",
         "trait": {
-            "description": "Burn & Demon's Backfire Passive (Need %)",
-            "maxStat": 0
+            "description": " to Burn Enemy when Damage is Taken.",
+            "maxStat": 25
         }
     },
     "Darkryte Ore": {
@@ -310,8 +310,8 @@
         "multiplier": 6.3,
         "traitType": "Armor",
         "trait": {
-            "description": "Shadow's Phantom Step Passive (15% Static?)",
-            "maxStat": 0
+            "description": " Chance to Dodge Damage (Negate Fully)",
+            "maxStat": 15
         }
     },
     "Magenta Crystal Ore": {

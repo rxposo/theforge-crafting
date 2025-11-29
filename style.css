@@ -1,22 +1,142 @@
-/* style.css */
-
 body {
     font-family: Arial;
     padding: 30px;
+    background-color: #1e1e1e;
+    /* dark background */
+    color: #e0e0e0;
+    /* light text */
 }
 
-input, select {
+input,
+select {
     margin: 5px;
+    background-color: #2b2b2b;
+    /* dark input fields */
+    color: #ffffff;
+    /* white text */
+    border: 1px solid #555;
+    /* subtle border */
+    padding: 6px;
+}
+
+input::placeholder {
+    color: #aaaaaa;
 }
 
 #result {
     margin-top: 20px;
     white-space: pre-wrap;
+    color: #f0f0f0;
 }
 
-/* You can add more styling below */
+/* Buttons */
 button {
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
+    background-color: #3a3a3a;
+    border: 1px solid #666;
+    color: white;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #505050;
+}
+
+.ore-input-row {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.ore-options {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+
+    /* Bubble look */
+    background: #2f2f31;
+    border: 1px solid #3c3c3e;
+    border-radius: 10px;
+
+    /* Size / spacing */
+    min-width: 180px;
+    max-height: 140px;
+    padding: 6px 0;
+    margin: 0;
+
+    /* “Floating” feel */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+
+    /* Functionality */
+    list-style: none;
+    overflow-y: auto;
+    display: none;
+    z-index: 9999;
+
+    /* Small autofill-style font */
+    font-size: 14px;
+}
+
+/* List items inside */
+.ore-options li {
+    padding: 8px 14px;
+    cursor: pointer;
+    color: #eaeaea;
+
+    /* Subtle transition like Chrome’s bubble */
+    transition: background 0.15s ease;
+}
+
+/* Hover effect similar to autofill */
+.ore-options li:hover {
+    background: #454547;
+}
+
+/* Scrollbar (Chrome-like) */
+.ore-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ore-options::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.ore-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    max-width: 220px;   /* fits your layout */
+}
+
+.clear-btn {
+    position: absolute;
+    right: 12px;   /* moved left */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #555;
+    color: #ddd;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    display: none;
+    opacity: 0.9;
+}
+
+
+.clear-btn:hover {
+    background: #777;
+    color: white;
+    opacity: 1;
 }
