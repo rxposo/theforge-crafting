@@ -7,6 +7,7 @@ import Link from 'next/link';
 import oresDataRaw from '../../data/ores.json';
 import weaponOddsRaw from '../../data/weaponOdds.json';
 import armorOddsRaw from '../../data/armorOdds.json';
+import forgeDataRaw from '../../data/forgeData.json';
 
 // Simple Icons components (SVG)
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -47,6 +48,7 @@ type OddsData = Record<string, Record<string, number>>;
 const ores: OresData = oresDataRaw as unknown as OresData;
 const weaponOdds: OddsData = weaponOddsRaw;
 const armorOdds: OddsData = armorOddsRaw;
+const forgeData = forgeDataRaw as { basePrices: Record<string, number> };
 
 // --- Helper Functions ---
 function calculateCombinedMultiplier(selectedOres: Record<string, number>) {
@@ -323,6 +325,14 @@ const ARMOR_TYPES = [
     "Medium Helmet", "Medium Leggings", "Medium Chestplate",
     "Heavy Helmet", "Heavy Leggings", "Heavy Chestplate"
 ];
+
+// Function to calculate sell price: (base price x multiplier) + 10%
+function calculateSellPrice(itemName: string, multiplier: number): number {
+    const basePrice = forgeData.basePrices[itemName] || 0;
+    if (basePrice === 0) return 0;
+    const price = (basePrice * multiplier) * 1.1; // +10%
+    return Math.round(price * 100) / 100; // Round to 2 decimal places
+}
 
   // Component for Predicted Item Image
   const PredictedItemImage = ({ image, ratio, alt }: { image: string, ratio: string, alt: string }) => {
@@ -775,6 +785,49 @@ const ARMOR_TYPES = [
                             return null;
                         })()}
                     </div>
+                    {results && results.odds && Object.keys(results.odds).length > 0 && (() => {
+                        const sortedItems = currentTypes
+                            .map(type => ({ type, pct: results.odds[type] || 0 }))
+                            .sort((a, b) => b.pct - a.pct);
+                        const predictedItem = sortedItems[0];
+                        
+                        if (predictedItem && predictedItem.pct > 0) {
+                            const possibleItems = getPossibleItemImagesWithChances(predictedItem.type, predictedItem.pct, craftType);
+                            const sellPrice = calculateSellPrice(predictedItem.type, results.combinedMultiplier);
+                            return (
+                                <div className="mb-5 sm:mb-6 mt-0 sm:mt-0 md:-mt-16 lg:-mt-24 xl:-mt-28 bg-black/70 border border-zinc-600 rounded-sm px-3 sm:px-4 py-2 sm:py-2.5 text-center">
+                                    <div className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider mb-0.5">
+                                        Predicted {craftType}
+                                    </div>
+                                    <div className="text-sm sm:text-base md:text-lg font-bold text-green-400 mb-1.5">
+                                        {predictedItem.type} <span className="text-zinc-300 font-normal">({(predictedItem.pct * 100).toFixed(1)}%)</span>
+                                    </div>
+                                    {possibleItems.length > 0 ? (
+                                        <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-2">
+                                            {possibleItems.map((item, idx) => (
+                                                <PredictedItemImage 
+                                                    key={idx}
+                                                    image={item.image}
+                                                    ratio={item.ratio}
+                                                    alt={`${predictedItem.type} variation ${idx + 1}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[9px] sm:text-[10px] text-zinc-500 italic mb-2">
+                                            {craftType === "Weapon" ? "Weapon image coming soon" : "No images available"}
+                                        </div>
+                                    )}
+                                    {sellPrice > 0 && (
+                                        <div className="text-[11px] sm:text-xs md:text-sm font-bold" style={{ color: '#D4AF37' }}>
+                                            Masterwork price: ${sellPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
 
                     {/* Cauldron Area */}
                     <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col items-center justify-center bg-radial-gradient from-orange-900/20 to-transparent rounded-full mb-1.5 sm:mb-2">
