@@ -207,6 +207,89 @@ function getOreImagePath(oreName: string): string | null {
   return null;
 }
 
+// Function to get armor items grouped by category (Light, Medium, Heavy)
+function getArmorItemsByCategory(): Record<string, Array<{name: string, image: string, categoryKey: string}>> {
+  return {
+    "Light": [
+      {name: "Light Helmet", image: "light_helmet", categoryKey: "Light Helmet"},
+      {name: "Light Leggings", image: "light_leggings", categoryKey: "Light Leggings"},
+      {name: "Light Chestplate", image: "light_chestplate", categoryKey: "Light Chestplate"},
+    ],
+    "Medium": [
+      {name: "Medium Helmet", image: "medium_helmet", categoryKey: "Medium Helmet"},
+      {name: "Medium Leggings", image: "medium_leggings", categoryKey: "Medium Leggings"},
+      {name: "Medium Chestplate", image: "medium_chestplate", categoryKey: "Medium Chestplate"},
+      {name: "Samurai Helmet", image: "samurai_helmet", categoryKey: "Medium Helmet"},
+      {name: "Samurai Leggings", image: "samurai_leggings", categoryKey: "Medium Leggings"},
+      {name: "Samurai Chestplate", image: "samurai_chestplate", categoryKey: "Medium Chestplate"},
+    ],
+    "Heavy": [
+      {name: "Knight Helmet", image: "knight_helmet", categoryKey: "Heavy Helmet"},
+      {name: "Dark Knight Helmet", image: "dark_knight_helmet", categoryKey: "Heavy Helmet"},
+      {name: "Knight Leggings", image: "knight_leggings", categoryKey: "Heavy Leggings"},
+      {name: "Dark Knight Leggings", image: "dark_knight_leggings", categoryKey: "Heavy Leggings"},
+      {name: "Knight Chestplate", image: "knight_chestplate", categoryKey: "Heavy Chestplate"},
+      {name: "Dark Knight Chestplate", image: "dark_knight_chestplate", categoryKey: "Heavy Chestplate"},
+    ],
+  };
+}
+
+// Function to calculate individual item chance based on category chance and item ratio
+function getItemChance(itemName: string, categoryKey: string, categoryChance: number): number {
+  // Items with 1/1 ratio (100% of category chance)
+  const fullChanceItems = [
+    "Light Helmet", "Light Leggings", "Light Chestplate",
+    "Medium Helmet", "Medium Leggings", "Medium Chestplate",
+    "Knight Helmet", "Knight Leggings", "Knight Chestplate"
+  ];
+  
+  // Items with 1/2 ratio (50% of category chance)
+  const halfChanceItems = [
+    "Samurai Helmet", "Samurai Leggings", "Samurai Chestplate",
+    "Dark Knight Helmet", "Dark Knight Leggings", "Dark Knight Chestplate"
+  ];
+  
+  if (fullChanceItems.includes(itemName)) {
+    return categoryChance * 1.0; // 1/1 = 100%
+  } else if (halfChanceItems.includes(itemName)) {
+    return categoryChance * 0.5; // 1/2 = 50%
+  }
+  
+  return 0;
+}
+
+// Function to get possible item images with their chances for a category
+function getPossibleItemImagesWithChances(categoryName: string, categoryChance: number, craftType: "Weapon" | "Armor"): Array<{image: string, ratio: string}> {
+  if (craftType === "Weapon") {
+    // For weapons, return single image with 1/1
+    const weaponMap: Record<string, string> = {
+      "Dagger": "dagger",
+      "Straight Sword": "straight_sword",
+      "Gauntlet": "gauntlet",
+      "Katana": "katana",
+      "Great Sword": "great_sword",
+      "Great Axe": "great_axe",
+      "Colossal Sword": "colossal_sword",
+    };
+    const imageName = weaponMap[categoryName];
+    return imageName ? [{image: `/items/${imageName}.png`, ratio: "1/1"}] : [];
+  } else {
+    // For armor, return all variations with their ratios
+    const armorByCategory = getArmorItemsByCategory();
+    const allItems = Object.values(armorByCategory).flat();
+    const categoryItems = allItems.filter(item => item.categoryKey === categoryName);
+    
+    return categoryItems.map(item => {
+      const itemChance = getItemChance(item.name, item.categoryKey, categoryChance);
+      const ratio = itemChance === categoryChance ? "1/1" : "1/2";
+      return {
+        image: `/items/${item.image}.png`,
+        ratio: ratio
+      };
+    });
+  }
+}
+
 // --- Components ---
 
 const RarityColors: Record<string, string> = {
@@ -447,38 +530,119 @@ const ARMOR_TYPES = [
                         <h2 className="text-base sm:text-lg md:text-xl font-bold text-white uppercase tracking-wide">Forge Chances</h2>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 md:space-y-4">
-                        {currentTypes
-                            .map(type => ({ 
-                                type, 
-                                pct: results?.odds?.[type] || 0,
-                                bestCount: getBestOreCountForItem(type, craftType)
-                            }))
-                            .sort((a, b) => b.pct - a.pct)
-                            .map(({ type, pct, bestCount }, index) => {
-                            const isNewTop = index === 0 && topItemChanged && type !== previousTopItem && pct > 0;
-                            return (
-                                <div 
-                                    key={type} 
-                                    className={`opacity-90 transition-all duration-300 ${
-                                        isNewTop ? 'top-item-animation' : ''
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-center mb-0.5 sm:mb-1">
-                                         <span className="text-zinc-400 text-xs sm:text-sm truncate pr-2">{type}</span>
-                                         <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${pct > 0 ? 'text-green-400' : 'text-zinc-600'}`}>{(pct * 100).toFixed(0)}%</span>
+                    <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4">
+                        {craftType === "Armor" ? (() => {
+                            // Group items by categoryKey (Light Helmet, Medium Chestplate, etc.)
+                            const armorByCategory = getArmorItemsByCategory();
+                            const categoryGroups: Record<string, Array<{name: string, image: string, chance: number, ratio: string}>> = {};
+                            
+                            // Process each category and group by categoryKey
+                            Object.values(armorByCategory).flat().forEach(item => {
+                                const categoryChance = results?.odds?.[item.categoryKey] || 0;
+                                const itemChance = getItemChance(item.name, item.categoryKey, categoryChance);
+                                const ratio = itemChance === categoryChance ? "1/1" : "1/2";
+                                
+                                if (!categoryGroups[item.categoryKey]) {
+                                    categoryGroups[item.categoryKey] = [];
+                                }
+                                
+                                categoryGroups[item.categoryKey].push({
+                                    name: item.name,
+                                    image: `/items/${item.image}.png`,
+                                    chance: itemChance,
+                                    ratio: ratio
+                                });
+                            });
+                            
+                            // Convert to array and sort by total category chance
+                            const sortedCategories = Object.entries(categoryGroups)
+                                .map(([categoryKey, items]) => ({
+                                    categoryKey,
+                                    categoryChance: results?.odds?.[categoryKey] || 0,
+                                    items: items.sort((a, b) => b.chance - a.chance)
+                                }))
+                                .sort((a, b) => b.categoryChance - a.categoryChance);
+                            
+                            return sortedCategories.map((category, catIndex) => {
+                                const isNewTop = catIndex === 0 && topItemChanged && category.categoryKey !== previousTopItem && category.categoryChance > 0;
+                                return (
+                                    <div 
+                                        key={category.categoryKey} 
+                                        className={`opacity-90 transition-all duration-300 ${
+                                            isNewTop ? 'top-item-animation' : ''
+                                        }`}
+                                    >
+                                        {/* Category Header */}
+                                        <div className="flex justify-between items-center mb-1 sm:mb-1.5">
+                                            <span className="text-zinc-300 text-xs sm:text-sm font-medium">{category.categoryKey}</span>
+                                            <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${category.categoryChance > 0 ? 'text-green-400' : 'text-zinc-600'}`}>
+                                                ({(category.categoryChance * 100).toFixed(0)}%)
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Variation Slots */}
+                                        <div className="flex gap-1.5 sm:gap-2 mb-1">
+                                            {category.items.map((item, itemIndex) => (
+                                                <div 
+                                                    key={item.name}
+                                                    className={`flex-1 h-8 sm:h-10 md:h-12 bg-zinc-800/50 border border-zinc-700 rounded-sm flex flex-col items-center justify-center relative overflow-hidden ${category.categoryChance > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}
+                                                >
+                                                    <img 
+                                                        src={item.image} 
+                                                        alt={item.name}
+                                                        className="w-full h-full object-contain opacity-80 p-1"
+                                                    />
+                                                    <span className="absolute bottom-0.5 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
+                                                        {item.ratio}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        {/* Single progress bar for the category */}
+                                        <div className="h-0.5 sm:h-1 bg-zinc-700 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-green-500 transition-all duration-300 ease-out" 
+                                                style={{ width: `${category.categoryChance * 100}%` }} 
+                                            />
+                                        </div>
                                     </div>
-                                    <div className={`h-8 sm:h-10 md:h-12 bg-zinc-800/50 border border-zinc-700 rounded-sm flex items-center justify-center relative overflow-hidden ${pct > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}>
-                                        {/* Best ore count */}
-                                        <span className="text-[9px] sm:text-[10px] md:text-xs text-zinc-400">Best: {bestCount} ores</span>
-                                        <div 
-                                            className="absolute bottom-0 left-0 h-0.5 sm:h-1 bg-green-500 transition-all duration-300 ease-out" 
-                                            style={{ width: `${pct * 100}%` }} 
-                                        />
+                                );
+                            });
+                        })() : (
+                            // For Weapons: Show as is
+                            currentTypes
+                                .map(type => ({ 
+                                    type, 
+                                    pct: results?.odds?.[type] || 0,
+                                    bestCount: getBestOreCountForItem(type, craftType)
+                                }))
+                                .sort((a, b) => b.pct - a.pct)
+                                .map(({ type, pct, bestCount }, index) => {
+                                const isNewTop = index === 0 && topItemChanged && type !== previousTopItem && pct > 0;
+                                const itemImage = `/items/${type.toLowerCase().replace(/\s+/g, '_')}.png`;
+                                return (
+                                    <div 
+                                        key={type} 
+                                        className={`opacity-90 transition-all duration-300 ${
+                                            isNewTop ? 'top-item-animation' : ''
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-center mb-0.5 sm:mb-1">
+                                             <span className="text-zinc-400 text-xs sm:text-sm truncate pr-2">{type}</span>
+                                             <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${pct > 0 ? 'text-green-400' : 'text-zinc-600'}`}>{(pct * 100).toFixed(0)}%</span>
+                                        </div>
+                                        <div className={`h-8 sm:h-10 md:h-12 bg-zinc-800/50 border border-zinc-700 rounded-sm flex items-center justify-center relative overflow-hidden ${pct > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}>
+                                            <span className="text-[9px] sm:text-[10px] md:text-xs text-zinc-400">Best: {bestCount} ores</span>
+                                            <div 
+                                                className="absolute bottom-0 left-0 h-0.5 sm:h-1 bg-green-500 transition-all duration-300 ease-out" 
+                                                style={{ width: `${pct * 100}%` }} 
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -490,6 +654,11 @@ const ARMOR_TYPES = [
                     </div>
 
                     {/* Predicted Item - Compact */}
+                    {craftType === "Weapon" && (
+                        <div className="mb-2 text-[9px] sm:text-[10px] text-zinc-500 italic text-center">
+                            Images and chances like armor will be added later
+                        </div>
+                    )}
                     {results && results.odds && Object.keys(results.odds).length > 0 && (() => {
                         const sortedItems = currentTypes
                             .map(type => ({ type, pct: results.odds[type] || 0 }))
@@ -497,14 +666,39 @@ const ARMOR_TYPES = [
                         const predictedItem = sortedItems[0];
                         
                         if (predictedItem && predictedItem.pct > 0) {
+                            const possibleItems = getPossibleItemImagesWithChances(predictedItem.type, predictedItem.pct, craftType);
                             return (
                                 <div className="mb-3 sm:mb-4 bg-black/70 border border-zinc-600 rounded-sm px-3 sm:px-4 py-2 sm:py-2.5 text-center">
                                     <div className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider mb-0.5">
                                         Predicted {craftType}
                                     </div>
-                                    <div className="text-sm sm:text-base md:text-lg font-bold text-green-400">
+                                    <div className="text-sm sm:text-base md:text-lg font-bold text-green-400 mb-1.5">
                                         {predictedItem.type} <span className="text-zinc-300 font-normal">({(predictedItem.pct * 100).toFixed(1)}%)</span>
                                     </div>
+                                    {possibleItems.length > 0 ? (
+                                        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                                            {possibleItems.map((item, idx) => (
+                                                <div key={idx} className="flex flex-col items-center">
+                                                    <img 
+                                                        src={item.image} 
+                                                        alt={`${predictedItem.type} variation ${idx + 1}`}
+                                                        className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80"
+                                                        onError={(e) => {
+                                                            // Hide image if it fails to load
+                                                            (e.target as HTMLImageElement).style.display = 'none';
+                                                        }}
+                                                    />
+                                                    <span className="text-[8px] sm:text-[9px] text-white mt-0.5 font-medium">
+                                                        {item.ratio}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[9px] sm:text-[10px] text-zinc-500 italic">
+                                            {craftType === "Weapon" ? "Weapon image coming soon" : "No images available"}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         }
