@@ -168,75 +168,9 @@ const ARMOR_TYPES = [
     "Heavy Helmet", "Heavy Leggings", "Heavy Chestplate"
 ];
 
-
-  // --- Helper Hooks for Long Press ---
-  function useLongPress(callback: () => void, onClick: () => void, ms = 1000) {
-    const [startLongPress, setStartLongPress] = useState(false);
-    const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-      let timerId: NodeJS.Timeout;
-      let animationFrameId: number;
-      let startTime: number;
-
-      if (startLongPress) {
-        startTime = Date.now();
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const p = Math.min(100, (elapsed / ms) * 100);
-            setProgress(p);
-            
-            if (p < 100) {
-                animationFrameId = requestAnimationFrame(animate);
-            }
-        };
-        animationFrameId = requestAnimationFrame(animate);
-
-        timerId = setTimeout(() => {
-          callback();
-          setStartLongPress(false);
-          setProgress(0);
-        }, ms);
-      } else {
-        setProgress(0);
-      }
-
-      return () => {
-        clearTimeout(timerId);
-        cancelAnimationFrame(animationFrameId);
-      };
-    }, [startLongPress, callback, ms]);
-
-    return {
-      onMouseDown: () => setStartLongPress(true),
-      onMouseUp: () => {
-          if (startLongPress && progress < 100) onClick();
-          setStartLongPress(false);
-      },
-      onMouseLeave: () => setStartLongPress(false),
-      onTouchStart: () => setStartLongPress(true),
-      onTouchEnd: () => {
-           if (startLongPress && progress < 100) onClick();
-           setStartLongPress(false);
-      },
-      progress
-    };
-  }
-
   // Component for Slot Button to handle its own state cleanly
-  const SlotButton = ({ slot, index, onRemoveOne, onRemoveAll }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void }) => {
-      const longPress = useLongPress(
-        () => onRemoveAll(index),
-        () => onRemoveOne(index),
-        600 // ms for long press
-      );
-
-      // If empty, render simple disabled-like button, or clickable to add if we had add-modal. 
-      // Current logic: clicking empty does nothing or selects if we implement selection. 
-      // But parent handles add. This component is just for display/removal interaction of occupied slots.
-      // Actually, if it's empty, we just show empty state.
-      
+  const SlotButton = ({ slot, index, onRemoveOne }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void }) => {
+      // If empty, render simple disabled-like button
       if (!slot) {
           return (
             <button 
@@ -249,27 +183,17 @@ const ARMOR_TYPES = [
 
       return (
         <button 
+            onClick={() => onRemoveOne(index)}
             className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 border-2 ${RarityColors[ores[slot.name].rarity] || 'border-white'} bg-black/60 hover:bg-black/80 transition-all flex flex-col items-center justify-center relative group overflow-hidden select-none`}
-            {...longPress}
         >
             <div className={`w-full h-full absolute inset-0 opacity-20 ${RarityBg[ores[slot.name].rarity]}`} />
-            
-            {/* Progress Bar for Delete */}
-            {longPress.progress > 0 && (
-                <div className="absolute inset-0 bg-red-900/50 z-0 flex items-end">
-                    <div 
-                        className="w-full bg-red-600/80 transition-all duration-75 ease-linear"
-                        style={{ height: `${longPress.progress}%` }}
-                    />
-                </div>
-            )}
 
             <span className="text-[7px] sm:text-[8px] md:text-[10px] text-center leading-tight px-0.5 sm:px-1 z-10 font-bold relative">{slot.name}</span>
             <span className="absolute bottom-0.5 sm:bottom-1 right-0.5 sm:right-1 text-[8px] sm:text-[10px] md:text-xs font-bold text-white z-10 drop-shadow-md">x{slot.count}</span>
             
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
-                <span className="text-red-500 text-[8px] sm:text-[9px] md:text-[10px] uppercase font-bold bg-black/80 px-0.5 sm:px-1 rounded transform translate-y-[-15px]">
-                    Click -1<br/>Hold Clear
+                <span className="text-red-500 text-[8px] sm:text-[9px] md:text-[10px] uppercase font-bold bg-black/80 px-0.5 sm:px-1 rounded">
+                    Click to Remove
                 </span>
             </div>
         </button>
@@ -346,12 +270,6 @@ const ARMOR_TYPES = [
           }
           setSlots(newSlots);
       }
-  };
-
-  const removeOreFromSlot = (index: number) => {
-      const newSlots = [...slots];
-      newSlots[index] = null;
-      setSlots(newSlots);
   };
 
   const clearAll = () => {
@@ -449,6 +367,28 @@ const ARMOR_TYPES = [
                          {/* You would put chain SVG here */}
                     </div>
 
+                    {/* Predicted Item - Compact */}
+                    {results && results.odds && Object.keys(results.odds).length > 0 && (() => {
+                        const sortedItems = currentTypes
+                            .map(type => ({ type, pct: results.odds[type] || 0 }))
+                            .sort((a, b) => b.pct - a.pct);
+                        const predictedItem = sortedItems[0];
+                        
+                        if (predictedItem && predictedItem.pct > 0) {
+                            return (
+                                <div className="mb-3 sm:mb-4 bg-black/70 border border-zinc-600 rounded-sm px-3 sm:px-4 py-2 sm:py-2.5 text-center">
+                                    <div className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider mb-0.5">
+                                        Predicted {craftType}
+                                    </div>
+                                    <div className="text-sm sm:text-base md:text-lg font-bold text-green-400">
+                                        {predictedItem.type} <span className="text-zinc-300 font-normal">({(predictedItem.pct * 100).toFixed(1)}%)</span>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+
                     {/* Cauldron Area */}
                     <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md aspect-square flex flex-col items-center justify-center bg-radial-gradient from-orange-900/20 to-transparent rounded-full mb-4 sm:mb-6 md:mb-8">
                         {/* Slots */}
@@ -459,7 +399,6 @@ const ARMOR_TYPES = [
                                     index={idx}
                                     slot={slot}
                                     onRemoveOne={removeOneOreFromSlot}
-                                    onRemoveAll={removeOreFromSlot}
                                 />
                             ))}
                         </div>
@@ -489,7 +428,7 @@ const ARMOR_TYPES = [
                             className="bg-gradient-to-t from-red-500/80 to-orange-500/80 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 sm:py-2.5 md:py-3 px-6 sm:px-7 md:px-8 rounded-sm border-2 border-red-900/50 uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 text-xs sm:text-sm md:text-base"
                             onClick={clearAll}
                         >
-                            Clear Receipt
+                            Clear
                         </button>
                     </div>
                 </div>
