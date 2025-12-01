@@ -185,8 +185,11 @@ function getOreImagePath(oreName: string): string | null {
     "Uranium Ore": "uranium",
     "Mythril Ore": "mythril",
     "Eye Ore": "eye",
+    "Fireite Ore": "fireite",
+    "Magmaite Ore": "magmaite",
     "Lightite Ore": "lightite",
     "Demonite Ore": "demonite",
+    "Darkryte Ore": "darkryte",
   };
 
   const imageName = imageMap[oreName];
@@ -282,9 +285,14 @@ const ARMOR_TYPES = [
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredOreNames = useMemo(() => {
-      const names = Object.keys(ores).filter(name => 
-          name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const names = Object.keys(ores).filter(name => {
+          // Filter by search term
+          if (!name.toLowerCase().includes(searchTerm.toLowerCase())) {
+              return false;
+          }
+          // Only show ores that have images
+          return getOreImagePath(name) !== null;
+      });
       
       return names.sort((a, b) => {
           const diff = ores[b].multiplier - ores[a].multiplier; // Descending multiplier
