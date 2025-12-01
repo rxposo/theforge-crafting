@@ -717,15 +717,16 @@ const ARMOR_TYPES = [
                                 <div className="text-[10px] sm:text-[11px] text-zinc-500 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 leading-tight">
                                     {(() => {
                                         const compositionEntries = Object.entries(results.composition)
-                                            .sort((a, b) => b[1] - a[1]); // Sort by percentage descending
-                                        const maxPct = compositionEntries[0]?.[1] || 0;
+                                            .sort((a, b) => (b[1] as number) - (a[1] as number)); // Sort by percentage descending
+                                        const maxPct = (compositionEntries[0]?.[1] as number) || 0;
                                         
                                         return compositionEntries.map(([oreName, pct], index) => {
-                                            const isHighest = pct === maxPct && pct > 0;
+                                            const pctNum = pct as number;
+                                            const isHighest = pctNum === maxPct && pctNum > 0;
                                             return (
                                                 <span key={oreName}>
                                                     <span className={isHighest ? 'text-yellow-400 font-semibold' : 'text-zinc-500'}>
-                                                        {oreName}({pct.toFixed(0)}%)
+                                                        {oreName}({pctNum.toFixed(0)}%)
                                                     </span>
                                                     {index < compositionEntries.length - 1 && (
                                                         <span className="text-zinc-600 mx-0.5">+</span>
