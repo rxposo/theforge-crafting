@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, memo, useRef } from 'react';
+import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 // Removed forgecalc.css import to use Tailwind completely
 
@@ -8,6 +8,26 @@ import oresDataRaw from '../../data/ores.json';
 import weaponOddsRaw from '../../data/weaponOdds.json';
 import armorOddsRaw from '../../data/armorOdds.json';
 import forgeDataRaw from '../../data/forgeData.json';
+
+// Custom hook to detect mobile devices
+function useIsMobile(breakpoint: number = 1024) {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < breakpoint);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Listen for resize events
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [breakpoint]);
+  
+  return isMobile;
+}
 
 // Simple Icons components (SVG)
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -36,6 +56,20 @@ const TrashIcon = ({ className }: { className?: string }) => (
     </defs>
     <path d="M5 7.5C5 6.67157 5.67157 6 6.5 6H17.5C18.3284 6 19 6.67157 19 7.5V20.5C19 21.3284 18.3284 22 17.5 22H6.5C5.67157 22 5 21.3284 5 20.5V7.5Z" mask="url(#trashMask)" />
     <path d="M8.5 2C8.5 2 8.5 1 9.5 1H14.5C15.5 1 15.5 2 15.5 2H19.5C20.3284 2 21 2.67157 21 3.5V4.5H3V3.5C3 2.67157 3.67157 2 4.5 2H8.5Z" />
+  </svg>
+);
+
+const CloseIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const EyeIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
@@ -568,7 +602,7 @@ const loadedImageCache = new Set<string>();
   };
 
   // Component for Slot Button to handle its own state cleanly
-  const SlotButton = ({ slot, index, onRemoveOne, onRemoveAll }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void }) => {
+  const SlotButton = ({ slot, index, onRemoveOne, onRemoveAll, isMobile = false }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void, isMobile?: boolean }) => {
       const [isHolding, setIsHolding] = useState(false);
       const [progress, setProgress] = useState(0);
       const [isDeleting, setIsDeleting] = useState(false);
@@ -592,21 +626,25 @@ const loadedImageCache = new Set<string>();
       if (!slot) {
           return (
             <button 
-                className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 border-2 border-zinc-600 border-dashed bg-black/60 transition-all flex flex-col items-center justify-center relative"
+                className={`border-2 border-zinc-600 border-dashed bg-black/60 transition-all flex flex-col items-center justify-center relative ${
+                  isMobile 
+                    ? 'w-full aspect-square' 
+                    : 'w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20'
+                }`}
             >
-                 <span className="text-zinc-500 text-[8px] sm:text-[10px] md:text-xs uppercase font-medium">Empty</span>
+                 <span className={`text-zinc-500 uppercase font-medium ${isMobile ? 'text-xs' : 'text-[8px] sm:text-[10px] md:text-xs'}`}>Empty</span>
             </button>
           );
       }
 
       const oreImage = getOreImagePath(slot.name);
       
-      const handleMouseDown = (e: React.MouseEvent) => {
-        e.preventDefault();
+      // Shared logic for starting the hold
+      const startHold = () => {
         wasHoldingRef.current = false;
         
         // Wait 150ms before starting the hold progress
-        // This allows quick clicks to work normally
+        // This allows quick taps/clicks to work normally
         holdStartTimeoutRef.current = setTimeout(() => {
           setIsHolding(true);
           setProgress(0);
@@ -635,12 +673,13 @@ const loadedImageCache = new Set<string>();
             }
           }, 16); // ~60fps
           
-          // Store interval reference (we'll clean it up on mouse up/leave)
+          // Store interval reference (we'll clean it up on release)
           progressIntervalRef.current = interval;
         }, 150);
       };
 
-      const handleMouseUp = () => {
+      // Shared logic for ending the hold
+      const endHold = () => {
         // Clear the hold start timeout if it hasn't fired yet
         if (holdStartTimeoutRef.current) {
           clearTimeout(holdStartTimeoutRef.current);
@@ -659,23 +698,42 @@ const loadedImageCache = new Set<string>();
         setProgress(0);
       };
 
+      // Mouse events (desktop)
+      const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        startHold();
+      };
+
+      const handleMouseUp = () => {
+        endHold();
+      };
+
       const handleMouseLeave = () => {
-        // Clear the hold start timeout if it hasn't fired yet
-        if (holdStartTimeoutRef.current) {
-          clearTimeout(holdStartTimeoutRef.current);
-          holdStartTimeoutRef.current = null;
+        endHold();
+      };
+
+      // Touch events (mobile)
+      const handleTouchStart = (e: React.TouchEvent) => {
+        e.preventDefault(); // Prevent default to avoid double-firing with mouse events
+        startHold();
+      };
+
+      const handleTouchEnd = (e: React.TouchEvent) => {
+        e.preventDefault();
+        // If we were holding, don't trigger tap
+        if (wasHoldingRef.current || progress > 0) {
+          endHold();
+          return;
         }
-        
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
+        endHold();
+        // Trigger single tap action (remove one)
+        if (!isHolding && progress === 0) {
+          handleDelete(() => onRemoveOne(index));
         }
-        // Mark that we were holding if progress > 0
-        if (progress > 0) {
-          wasHoldingRef.current = true;
-        }
-        setIsHolding(false);
-        setProgress(0);
+      };
+
+      const handleTouchCancel = () => {
+        endHold();
       };
 
       const handleClick = (e: React.MouseEvent) => {
@@ -685,8 +743,8 @@ const loadedImageCache = new Set<string>();
           wasHoldingRef.current = false;
           return;
         }
-        // Only trigger if we didn't hold at all
-        if (!isHolding && progress === 0) {
+        // Only trigger if we didn't hold at all (and not on touch devices - touch handles its own tap)
+        if (!isHolding && progress === 0 && !('ontouchstart' in window)) {
           handleDelete(() => onRemoveOne(index));
         }
       };
@@ -705,8 +763,15 @@ const loadedImageCache = new Set<string>();
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
             onClick={handleClick}
-            className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 border-2 ${isDeleting ? 'slot-deleting' : RarityColors[ores[slot.name].rarity] || 'border-white'} bg-black/60 hover:bg-black/80 transition-all cursor-pointer flex flex-col items-start justify-start p-0.5 sm:p-1 relative group overflow-hidden select-none ${isDeleting ? '' : 'animate-pop-in'}`}
+            className={`border-2 ${isDeleting ? 'slot-deleting' : RarityColors[ores[slot.name].rarity] || 'border-white'} bg-black/60 hover:bg-black/80 transition-all cursor-pointer flex flex-col items-start justify-start p-0.5 sm:p-1 relative group overflow-hidden select-none ${isDeleting ? '' : 'animate-pop-in'} ${
+              isMobile 
+                ? 'w-full aspect-square' 
+                : 'w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20'
+            }`}
         >
             <div className={`slot-content w-full h-full absolute inset-0`}>
               {oreImage ? (
@@ -723,8 +788,12 @@ const loadedImageCache = new Set<string>();
               )}
             </div>
 
-            <span className={`text-[7px] sm:text-[8px] md:text-[10px] text-left leading-tight font-medium break-words w-full px-1 z-10 relative ${oreImage ? 'text-white' : ''} slot-content`}>{slot.name}</span>
-            <span className={`absolute bottom-0.5 sm:bottom-1 right-0.5 sm:right-1 text-[8px] sm:text-[10px] md:text-xs font-bold text-white z-10 slot-content`}>x{slot.count}</span>
+            <span className={`text-left leading-tight font-medium break-words w-full px-1 z-10 relative ${oreImage ? 'text-white' : ''} slot-content ${
+              isMobile ? 'text-[10px]' : 'text-[7px] sm:text-[8px] md:text-[10px]'
+            }`}>{slot.name}</span>
+            <span className={`absolute font-bold text-white z-10 slot-content ${
+              isMobile ? 'bottom-1 right-1 text-sm' : 'bottom-0.5 sm:bottom-1 right-0.5 sm:right-1 text-[8px] sm:text-[10px] md:text-xs'
+            }`}>x{slot.count}</span>
             
             <div className={`absolute inset-0 flex items-center justify-center transition-opacity z-20 pointer-events-none bg-black/40 ${isHolding || isDeleting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center">
@@ -743,12 +812,14 @@ const loadedImageCache = new Set<string>();
     oreName, 
     data, 
     oreImage, 
-    onClick 
+    onClick,
+    isMobile = false
   }: { 
     oreName: string, 
     data: OreData, 
     oreImage: string | null, 
-    onClick: () => void 
+    onClick: () => void,
+    isMobile?: boolean
   }) => {
     const [isClicked, setIsClicked] = useState(false);
 
@@ -768,22 +839,29 @@ const loadedImageCache = new Set<string>();
                     <img 
                         src={oreImage} 
                         alt={oreName}
-                        className="w-full h-full object-cover absolute inset-0 opacity-80"
+                        className={`object-cover absolute inset-0 opacity-80 ${isMobile ? 'w-full h-full' : 'w-full h-full'}`}
                     />
                     <div className={`absolute inset-0 ${RarityBg[data.rarity]} opacity-30`} />
                 </>
             ) : null}
+            {/* Ore name - larger on mobile */}
             <span 
-                className={`text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] text-left leading-tight font-medium break-words w-full px-1 relative z-10 ${
-                    oreImage 
-                        ? 'text-white' 
-                        : ''
+                className={`text-left leading-tight font-medium break-words w-full px-0.5 relative z-10 ${
+                    oreImage ? 'text-white' : ''
+                } ${
+                    isMobile 
+                        ? 'text-[9px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' 
+                        : 'text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px]'
                 }`}
             >
                 {oreName}
             </span>
-            {/* Multiplier hint */}
-            <span className="absolute bottom-0.5 right-0.5 sm:bottom-0.5 sm:right-1 text-[6px] sm:text-[7px] md:text-[8px] text-zinc-300 z-10 font-semibold">{data.multiplier}x</span>
+            {/* Multiplier hint - larger on mobile */}
+            <span className={`absolute z-10 font-bold ${
+                isMobile 
+                    ? 'bottom-0.5 right-0.5 text-[10px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' 
+                    : 'bottom-0.5 right-0.5 sm:bottom-0.5 sm:right-1 text-[6px] sm:text-[7px] md:text-[8px] text-zinc-300'
+            }`}>{data.multiplier}x</span>
         </button>
     );
   };
@@ -863,6 +941,69 @@ const loadedImageCache = new Set<string>();
     );
   };
 
+  // Traits Modal Component for Mobile
+  const TraitsModal = ({ 
+    isOpen, 
+    onClose, 
+    traits 
+  }: { 
+    isOpen: boolean, 
+    onClose: () => void, 
+    traits: { ore: string, lines: string[] }[] 
+  }) => {
+    if (!isOpen) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative w-full max-w-sm bg-zinc-900 border-2 border-zinc-700 rounded-lg shadow-2xl animate-fade-in max-h-[80vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b border-zinc-700 bg-zinc-800/50">
+            <h3 className="text-orange-400 font-bold uppercase text-sm tracking-wide flex items-center gap-2">
+              <EyeIcon className="w-4 h-4" />
+              Active Traits
+            </h3>
+            <button 
+              onClick={onClose}
+              className="p-1.5 hover:bg-zinc-700 rounded transition-colors"
+            >
+              <CloseIcon className="w-5 h-5 text-zinc-400 hover:text-white" />
+            </button>
+          </div>
+          
+          {/* Traits Content */}
+          <div className="overflow-y-auto p-3 flex-1">
+            {traits && traits.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2">
+                {traits.map((tr: { ore: string, lines: string[] }, idx: number) => (
+                  <div key={idx} className="text-xs text-zinc-300 bg-white/5 p-3 rounded border border-white/10">
+                    <div className="text-orange-300 font-bold mb-1.5 text-sm">{tr.ore || 'Generic'}</div>
+                    <div className="space-y-1">
+                      {tr.lines.map((l: string, i: number) => (
+                        <div key={i} className="text-[11px] leading-relaxed">{l}</div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-zinc-500 py-8">
+                <p className="text-sm">No active traits</p>
+                <p className="text-xs mt-1">Add ores with 10%+ composition to see traits</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   export default function Calculator() {
   const [slots, setSlots] = useState<(SlotItem | null)[]>([null, null, null, null]);
   const [craftType, setCraftType] = useState<"Weapon" | "Armor">("Weapon");
@@ -870,6 +1011,12 @@ const loadedImageCache = new Set<string>();
   const [searchTerm, setSearchTerm] = useState("");
   const [previousTopItem, setPreviousTopItem] = useState<string | null>(null);
   const [topItemChanged, setTopItemChanged] = useState(false);
+  const [isTraitsModalOpen, setIsTraitsModalOpen] = useState(false);
+  const [isTraitsFadingOut, setIsTraitsFadingOut] = useState(false);
+  const [shouldShowTraits, setShouldShowTraits] = useState(false);
+  const previousTraitsLengthRef = useRef<number>(0);
+  
+  const isMobile = useIsMobile();
 
   const filteredOreNames = useMemo(() => {
       const names = Object.keys(ores).filter(name => {
@@ -922,6 +1069,32 @@ const loadedImageCache = new Set<string>();
     setPreviousTopItem(currentTopItem);
     setResults(computed);
   }, [slots, craftType]);
+
+  // Handle traits fade-out animation
+  useEffect(() => {
+    const currentTraitsLength = results?.traits?.length || 0;
+    const hadTraits = previousTraitsLengthRef.current > 0;
+    const hasTraits = currentTraitsLength > 0;
+    
+    if (hasTraits) {
+      // Traits appeared, show them immediately
+      setIsTraitsFadingOut(false);
+      setShouldShowTraits(true);
+    } else if (hadTraits && !hasTraits) {
+      // Traits disappeared (went from having traits to none), start fade-out
+      setIsTraitsFadingOut(true);
+      // After animation completes, hide the element
+      const timer = setTimeout(() => {
+        setShouldShowTraits(false);
+        setIsTraitsFadingOut(false);
+      }, 400); // Match animation duration
+      previousTraitsLengthRef.current = 0;
+      return () => clearTimeout(timer);
+    }
+    
+    // Update ref for next render
+    previousTraitsLengthRef.current = currentTraitsLength;
+  }, [results?.traits]);
 
   const addOreToSlot = (oreName: string) => {
     // Check if ore exists in a slot
@@ -986,11 +1159,20 @@ const loadedImageCache = new Set<string>();
       <div className="fixed inset-0 -z-10 bg-zinc-950/80" />
       <div className="fixed inset-0 -z-10 bg-gradient-to-t from-zinc-950 via-transparent to-zinc-950/50" />
 
+      {/* Traits Modal for Mobile */}
+      {isMobile && (
+        <TraitsModal 
+          isOpen={isTraitsModalOpen} 
+          onClose={() => setIsTraitsModalOpen(false)} 
+          traits={results?.traits || []} 
+        />
+      )}
+
         {/* Main Container */}
-        <div className="min-h-screen flex flex-col p-3 sm:p-4 md:p-8 max-w-[1600px] mx-auto pt-6 sm:pt-8 pb-6">
+        <div className={`min-h-screen flex flex-col p-3 sm:p-4 md:p-8 max-w-[1600px] mx-auto pt-6 sm:pt-8 pb-6 ${isMobile ? 'overflow-x-hidden' : ''}`}>
             
-            {/* Back Button */}
-            <div className="mb-3 sm:mb-4">
+            {/* Header Row - Back Button and Clear Button (mobile only) */}
+            <div className="mb-3 sm:mb-4 flex items-center justify-between">
                 <Link 
                     href="/"
                     className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-xs sm:text-sm font-medium"
@@ -1000,13 +1182,31 @@ const loadedImageCache = new Set<string>();
                     </svg>
                     Back to Home
                 </Link>
+                
+                {/* Clear Button - Mobile Only, positioned top right */}
+                {isMobile && (
+                    <button 
+                        className="bg-gradient-to-t from-red-500/80 to-orange-500/80 hover:from-red-500 hover:to-orange-500 text-white font-bold py-1.5 px-4 rounded-sm border border-red-900/50 uppercase tracking-wider transition-all shadow-lg shadow-red-900/20 text-xs"
+                        onClick={clearAll}
+                    >
+                        Clear
+                    </button>
+                )}
             </div>
 
-            {/* 3 Columns Layout */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] xl:grid-cols-[300px_1fr_350px] gap-4 sm:gap-6 items-start lg:items-center">
+            {/* 3 Columns Layout - Restructured for Mobile */}
+            <div className={`flex-1 grid gap-4 sm:gap-6 items-start lg:items-center ${
+              isMobile 
+                ? 'grid-cols-1' 
+                : 'grid-cols-1 lg:grid-cols-[280px_1fr_320px] xl:grid-cols-[300px_1fr_350px]'
+            }`}>
                 
-                {/* LEFT PANEL: Forge Chances */}
-                <div className="h-[400px] sm:h-[500px] md:h-[600px] lg:h-full lg:max-h-[800px] bg-black/80 border-2 border-zinc-700 rounded-sm flex flex-col relative order-2 lg:order-1">
+                {/* LEFT PANEL: Forge Chances - Order 4 on mobile (bottom), Order 1 on desktop */}
+                <div className={`bg-black/80 border-2 border-zinc-700 rounded-sm flex flex-col relative ${
+                  isMobile 
+                    ? 'h-[350px] order-4' 
+                    : 'h-[400px] sm:h-[500px] md:h-[600px] lg:h-full lg:max-h-[800px] order-2 lg:order-1'
+                }`}>
                     <div className="p-2 sm:p-3 border-b-2 border-zinc-700 bg-zinc-900/90">
                         <h2 className="text-base sm:text-lg md:text-xl font-bold text-white uppercase tracking-wide">Forge Chances</h2>
                     </div>
@@ -1183,15 +1383,23 @@ const loadedImageCache = new Set<string>();
                     </div>
                 </div>
 
-                {/* CENTER PANEL: Cauldron & Slots */}
-                <div className="flex flex-col items-center justify-start w-full relative order-1 lg:order-2 mb-6 lg:mb-0 pt-0">
+                {/* CENTER PANEL: Cauldron & Slots - Order 1 on mobile (top), Order 2 on desktop */}
+                <div className={`flex flex-col items-center justify-start w-full relative ${
+                  isMobile 
+                    ? 'order-1 mb-4' 
+                    : 'order-1 lg:order-2 mb-6 lg:mb-0'
+                } pt-0`}>
                     {/* Chain decoration (visual only, simplified) */}
                     <div className="absolute top-0 w-full flex justify-center -z-10 opacity-50 pointer-events-none">
                          {/* You would put chain SVG here */}
                     </div>
 
-                    {/* Predicted Item - Compact */}
-                    <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md min-h-[120px] sm:min-h-[140px] md:min-h-[160px] flex justify-center items-start mb-4 sm:mb-5 md:mb-6">
+                    {/* Predicted Item - Compact with reserved height */}
+                    <div className={`relative w-full flex justify-center items-start ${
+                      isMobile 
+                        ? 'max-w-full h-[130px] mb-3' 
+                        : 'max-w-xs sm:max-w-sm md:max-w-md min-h-[120px] sm:min-h-[140px] md:min-h-[160px] mb-4 sm:mb-5 md:mb-6'
+                    }`}>
                         <PredictedItemDisplay
                             results={results}
                             currentTypes={currentTypes}
@@ -1199,10 +1407,18 @@ const loadedImageCache = new Set<string>();
                         />
                     </div>
 
-                    {/* Cauldron Area */}
-                    <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col items-center justify-center bg-radial-gradient from-orange-900/20 to-transparent rounded-full mb-1.5 sm:mb-2">
-                        {/* Slots */}
-                        <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-1.5 sm:mb-2 z-10 px-2 sm:px-0">
+                    {/* Cauldron Area - Fixed height for mobile */}
+                    <div className={`relative w-full flex flex-col items-center justify-center bg-radial-gradient from-orange-900/20 to-transparent rounded-full ${
+                      isMobile 
+                        ? 'max-w-full h-[220px] mb-2' 
+                        : 'max-w-xs sm:max-w-sm md:max-w-md mb-1.5 sm:mb-2'
+                    }`}>
+                        {/* Slots - Full width on mobile */}
+                        <div className={`grid grid-cols-4 z-10 ${
+                          isMobile 
+                            ? 'gap-3 mb-2 w-full px-3' 
+                            : 'gap-2 sm:gap-3 md:gap-4 mb-1.5 sm:mb-2 px-2 sm:px-0'
+                        }`}>
                             {slots.map((slot, idx) => (
                                 <SlotButton 
                                     key={`${idx}-${slot?.name ?? 'empty'}-${slot?.count ?? 0}`}
@@ -1210,13 +1426,14 @@ const loadedImageCache = new Set<string>();
                                     slot={slot}
                                     onRemoveOne={removeOneOreFromSlot}
                                     onRemoveAll={removeAllOresFromSlot}
+                                    isMobile={isMobile}
                                 />
                             ))}
                         </div>
 
-                        {/* Composition */}
-                        {results && results.composition && Object.keys(results.composition).length > 0 && (
-                            <div className="text-center mb-1.5 sm:mb-2 px-2">
+                        {/* Composition - Fixed height container */}
+                        <div className={`text-center px-2 ${isMobile ? 'h-[24px] mb-2' : 'mb-1.5 sm:mb-2'}`}>
+                            {results && results.composition && Object.keys(results.composition).length > 0 ? (
                                 <div className="text-[10px] sm:text-[11px] text-zinc-500 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 leading-tight">
                                     {(() => {
                                         const compositionEntries = Object.entries(results.composition)
@@ -1239,63 +1456,92 @@ const loadedImageCache = new Set<string>();
                                         });
                                     })()}
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="h-full" /> /* Reserved space */
+                            )}
+                        </div>
 
-                        <div className="text-center mb-1.5 sm:mb-2">
-                             <div className="text-zinc-400 text-sm sm:text-base md:text-lg font-medium uppercase tracking-wider">Multiplier</div>
-                             <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{results?.combinedMultiplier ? `${results.combinedMultiplier.toFixed(2)}x` : '0x'}</div>
+                        <div className={`text-center ${isMobile ? 'mt-1' : 'mb-1.5 sm:mb-2'}`}>
+                             <div className={`text-zinc-400 font-medium uppercase tracking-wider ${isMobile ? 'text-sm' : 'text-sm sm:text-base md:text-lg'}`}>Multiplier</div>
+                             <div className={`font-bold text-white ${isMobile ? 'text-3xl' : 'text-2xl sm:text-3xl md:text-4xl'}`}>{results?.combinedMultiplier ? `${results.combinedMultiplier.toFixed(2)}x` : '0x'}</div>
                         </div>
                     </div>
 
-                    {/* Active Traits - Outside Cauldron Area */}
-                    <div className="w-full max-w-xs sm:max-w-sm md:max-w-md min-h-[80px] mb-1.5 sm:mb-2">
-                    {results?.traits && results.traits.length > 0 && (
-                         <div className="w-full bg-black/40 border border-white/10 rounded-lg p-2 sm:p-3 md:p-4 animate-fade-in">
-                            <h3 className="text-orange-400 font-bold mb-1.5 sm:mb-2 uppercase text-xs sm:text-sm text-center">Active Traits</h3>
-                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                                {results.traits.map((tr: any, idx: number) => (
-                                    <div key={idx} className="text-[10px] sm:text-xs text-zinc-300 bg-white/5 p-1.5 sm:p-2 rounded border border-white/5 text-center w-full h-full flex flex-col justify-center">
-                                        <div className="text-orange-300 font-bold mb-0.5 sm:mb-1">{tr.ore || 'Generic'}</div>
-                                        <div className="space-y-0.5">
-                                            {tr.lines.map((l: string, i: number) => (
-                                                <div key={i} className="text-[9px] sm:text-[10px]">{l}</div>
-                                            ))}
+                    {/* Active Traits - Button on Mobile (always reserve space), Full display on Desktop */}
+                    <div className={`w-full ${isMobile ? 'h-[44px]' : 'max-w-xs sm:max-w-sm md:max-w-md min-h-[80px]'} mb-1.5 sm:mb-2`}>
+                    {isMobile ? (
+                        /* Mobile: Show button to open traits modal - invisible when no traits but space is reserved */
+                        shouldShowTraits && results?.traits && results.traits.length > 0 && (
+                            <button
+                                onClick={() => setIsTraitsModalOpen(true)}
+                                className={`w-full py-2.5 px-4 rounded border bg-orange-500/20 border-orange-500/50 text-orange-400 hover:bg-orange-500/30 flex items-center justify-center gap-2 transition-opacity duration-[400ms] ${
+                                    isTraitsFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                                }`}
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                <span className="font-bold uppercase text-xs tracking-wide">
+                                  View Active Traits ({results.traits.length})
+                                </span>
+                            </button>
+                        )
+                    ) : (
+                        /* Desktop: Show full traits panel with fade in/out animations */
+                        shouldShowTraits && results?.traits && results.traits.length > 0 && (
+                             <div className={`w-full bg-black/40 border border-white/10 rounded-lg p-2 sm:p-3 md:p-4 transition-opacity duration-[400ms] ${
+                               isTraitsFadingOut ? 'opacity-0' : 'opacity-100 animate-fade-in'
+                             }`}>
+                                <h3 className="text-orange-400 font-bold mb-1.5 sm:mb-2 uppercase text-xs sm:text-sm text-center">Active Traits</h3>
+                                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                                    {results.traits.map((tr: any, idx: number) => (
+                                        <div key={idx} className="text-[10px] sm:text-xs text-zinc-300 bg-white/5 p-1.5 sm:p-2 rounded border border-white/5 text-center w-full h-full flex flex-col justify-center">
+                                            <div className="text-orange-300 font-bold mb-0.5 sm:mb-1">{tr.ore || 'Generic'}</div>
+                                            <div className="space-y-0.5">
+                                                {tr.lines.map((l: string, i: number) => (
+                                                    <div key={i} className="text-[9px] sm:text-[10px]">{l}</div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                         </div>
+                                    ))}
+                                </div>
+                             </div>
+                        )
                     )}
                     </div>
 
-                    <div className="w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col items-center gap-2 sm:gap-3 mt-8 sm:mt-12 md:mt-16">
-                        <div className="text-center px-2">
-                            <div className="text-[11px] sm:text-xs md:text-sm text-zinc-500 font-medium">
-                                please consider leaving a{' '}
-                                <a href="https://github.com/ghotality/theforge-crafting" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline">
-                                    star
-                                </a>
-                                {' '}if you liked this website
+                    {/* Desktop Only: Star message and Clear button */}
+                    {!isMobile && (
+                        <div className="w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col items-center gap-2 sm:gap-3 mt-8 sm:mt-12 md:mt-16">
+                            <div className="text-center px-2">
+                                <div className="text-[11px] sm:text-xs md:text-sm text-zinc-500 font-medium">
+                                    please consider leaving a{' '}
+                                    <a href="https://github.com/ghotality/theforge-crafting" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline">
+                                        star
+                                    </a>
+                                    {' '}if you liked this website
+                                </div>
+                                <div className="text-[9px] sm:text-[10px] text-zinc-600 mt-1">
+                                    it motivates me so much
+                                </div>
                             </div>
-                            <div className="text-[9px] sm:text-[10px] text-zinc-600 mt-1">
-                                it motivates me so much
-                            </div>
+                            <button 
+                                className="bg-gradient-to-t from-red-500/80 to-orange-500/80 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 sm:py-2.5 md:py-3 px-6 sm:px-7 md:px-8 rounded-sm border-2 border-red-900/50 uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 text-xs sm:text-sm md:text-base"
+                                onClick={clearAll}
+                            >
+                                Clear
+                            </button>
                         </div>
-                        <button 
-                            className="bg-gradient-to-t from-red-500/80 to-orange-500/80 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 sm:py-2.5 md:py-3 px-6 sm:px-7 md:px-8 rounded-sm border-2 border-red-900/50 uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 text-xs sm:text-sm md:text-base"
-                            onClick={clearAll}
-                        >
-                            Clear
-                        </button>
-                    </div>
+                    )}
                 </div>
 
-                {/* RIGHT PANEL: Ore Selector */}
-                <div className="h-[400px] sm:h-[500px] md:h-[600px] lg:h-full lg:max-h-[800px] bg-black/80 border-2 border-zinc-700 rounded-sm flex flex-col relative order-3">
+                {/* RIGHT PANEL: Ore Selector - Order 3 on mobile (above forge chances), Order 3 on desktop */}
+                <div className={`bg-black/80 border-2 border-zinc-700 rounded-sm flex flex-col relative ${
+                  isMobile 
+                    ? 'h-[280px] order-3' 
+                    : 'h-[400px] sm:h-[500px] md:h-[600px] lg:h-full lg:max-h-[800px] order-3'
+                }`}>
                      <div className="p-2 sm:p-3 border-b-2 border-zinc-700 bg-zinc-900/90">
                         <div className="flex justify-between items-center mb-2 sm:mb-3">
-                            <h2 className="text-base sm:text-lg md:text-xl font-bold text-white uppercase tracking-wide">Select Ores</h2>
+                            <h2 className={`font-bold text-white uppercase tracking-wide ${isMobile ? 'text-sm' : 'text-base sm:text-lg md:text-xl'}`}>Select Ores</h2>
                         </div>
                         <input 
                             type="text" 
@@ -1306,9 +1552,13 @@ const loadedImageCache = new Set<string>();
                         />
                     </div>
 
-                    {/* Ore Grid */}
+                    {/* Ore Grid - 4 columns on mobile with smaller icons */}
                     <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4">
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-1.5 sm:gap-2">
+                        <div className={`grid gap-1.5 sm:gap-2 ${
+                          isMobile 
+                            ? 'grid-cols-4' 
+                            : 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4'
+                        }`}>
                             {filteredOreNames.map(oreName => {
                                 const data = ores[oreName];
                                 // Always show all ores, ignoring trait compatibility for selection
@@ -1324,6 +1574,7 @@ const loadedImageCache = new Set<string>();
                                         data={data}
                                         oreImage={oreImage}
                                         onClick={() => addOreToSlot(oreName)}
+                                        isMobile={isMobile}
                                     />
                                 )
                             })}

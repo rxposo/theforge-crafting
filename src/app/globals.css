@@ -129,6 +129,20 @@ body {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+/* Fade out animation for traits */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.4s ease-out forwards;
+}
+
 /* Stable fade in that doesn't cause position flicker */
 @keyframes fadeInStable {
   0% {
@@ -235,4 +249,46 @@ body {
   animation: deleteTrashcanGrow 0.2s ease-in-out forwards;
   z-index: 30;
   pointer-events: none;
+}
+
+/* Mobile ore selector: hide internal button text */
+.mobile-ore-selector button span {
+  display: none;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 1023px) {
+  /* Prevent layout shift on mobile */
+  .mobile-stable-container {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Ensure smooth scrolling on mobile */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Modal animation */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-in {
+  animation: modalFadeIn 0.2s ease-out forwards;
 }
