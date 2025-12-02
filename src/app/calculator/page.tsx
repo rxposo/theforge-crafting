@@ -204,6 +204,13 @@ function getOreImagePath(oreName: string): string | null {
     "Lightite Ore": "lightite",
     "Demonite Ore": "demonite",
     "Darkryte Ore": "darkryte",
+    "Magenta Crystal Ore": "magenta_crystal",
+    "Crimson Crystal Ore": "crimson_crystal",
+    "Green Crystal Ore": "green_crystal",
+    "Orange Crystal Ore": "orange_crystal",
+    "Blue Crystal Ore": "blue_crystal",
+    "Rainbow Crystal Ore": "rainbow_crystal",
+    "Arcane Crystal Ore": "arcane_crystal",
   };
 
   const imageName = imageMap[oreName];
