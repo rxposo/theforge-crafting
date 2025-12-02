@@ -571,6 +571,7 @@ const loadedImageCache = new Set<string>();
   const SlotButton = ({ slot, index, onRemoveOne, onRemoveAll }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void }) => {
       const [isHolding, setIsHolding] = useState(false);
       const [progress, setProgress] = useState(0);
+      const [isDeleting, setIsDeleting] = useState(false);
       const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
       const holdStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
       const wasHoldingRef = useRef(false);
@@ -627,9 +628,9 @@ const loadedImageCache = new Set<string>();
               // Small delay to ensure visual completion
               setTimeout(() => {
                 wasHoldingRef.current = true;
-                onRemoveAll(index);
                 setIsHolding(false);
                 setProgress(0);
+                handleDelete(() => onRemoveAll(index));
               }, 50);
             }
           }, 16); // ~60fps
@@ -686,8 +687,17 @@ const loadedImageCache = new Set<string>();
         }
         // Only trigger if we didn't hold at all
         if (!isHolding && progress === 0) {
-          onRemoveOne(index);
+          handleDelete(() => onRemoveOne(index));
         }
+      };
+
+      const handleDelete = (deleteCallback: () => void) => {
+        setIsDeleting(true);
+        // Wait for animation to complete before actually removing
+        setTimeout(() => {
+          deleteCallback();
+          setIsDeleting(false);
+        }, 200); // Match animation duration
       };
       
       return (
@@ -696,30 +706,32 @@ const loadedImageCache = new Set<string>();
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
-            className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 border-2 ${RarityColors[ores[slot.name].rarity] || 'border-white'} bg-black/60 hover:bg-black/80 transition-all cursor-pointer flex flex-col items-start justify-start p-0.5 sm:p-1 relative group overflow-hidden select-none animate-pop-in`}
+            className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 border-2 ${isDeleting ? 'slot-deleting' : RarityColors[ores[slot.name].rarity] || 'border-white'} bg-black/60 hover:bg-black/80 transition-all cursor-pointer flex flex-col items-start justify-start p-0.5 sm:p-1 relative group overflow-hidden select-none ${isDeleting ? '' : 'animate-pop-in'}`}
         >
-            {oreImage ? (
-                <>
-                    <img 
-                        src={oreImage} 
-                        alt={slot.name}
-                        className="w-full h-full object-cover absolute inset-0 opacity-80"
-                    />
-                    <div className={`absolute inset-0 ${RarityBg[ores[slot.name].rarity]} opacity-30`} />
-                </>
-            ) : (
-                <div className={`w-full h-full absolute inset-0 opacity-20 ${RarityBg[ores[slot.name].rarity]}`} />
-            )}
+            <div className={`slot-content w-full h-full absolute inset-0`}>
+              {oreImage ? (
+                  <>
+                      <img 
+                          src={oreImage} 
+                          alt={slot.name}
+                          className="w-full h-full object-cover absolute inset-0 opacity-80"
+                      />
+                      <div className={`absolute inset-0 ${RarityBg[ores[slot.name].rarity]} opacity-30`} />
+                  </>
+              ) : (
+                  <div className={`w-full h-full absolute inset-0 opacity-20 ${RarityBg[ores[slot.name].rarity]}`} />
+              )}
+            </div>
 
-            <span className={`text-[7px] sm:text-[8px] md:text-[10px] text-left leading-tight font-medium break-words w-full px-1 z-10 relative ${oreImage ? 'text-white' : ''}`}>{slot.name}</span>
-            <span className="absolute bottom-0.5 sm:bottom-1 right-0.5 sm:right-1 text-[8px] sm:text-[10px] md:text-xs font-bold text-white z-10">x{slot.count}</span>
+            <span className={`text-[7px] sm:text-[8px] md:text-[10px] text-left leading-tight font-medium break-words w-full px-1 z-10 relative ${oreImage ? 'text-white' : ''} slot-content`}>{slot.name}</span>
+            <span className={`absolute bottom-0.5 sm:bottom-1 right-0.5 sm:right-1 text-[8px] sm:text-[10px] md:text-xs font-bold text-white z-10 slot-content`}>x{slot.count}</span>
             
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity z-20 pointer-events-none bg-black/40 ${isHolding ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <div className={`absolute inset-0 flex items-center justify-center transition-opacity z-20 pointer-events-none bg-black/40 ${isHolding || isDeleting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center">
-                    {isHolding && (
+                    {isHolding && !isDeleting && (
                         <CircularProgress progress={progress} size={56} />
                     )}
-                    <TrashIcon className={`w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white/80 drop-shadow-[0_0_10px_rgba(255,0,0,1)] filter relative z-10 ${isHolding ? 'scale-110' : ''} transition-transform`} />
+                    <TrashIcon className={`w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white/80 drop-shadow-[0_0_10px_rgba(255,0,0,1)] filter relative z-10 ${isHolding ? 'scale-110' : ''} ${isDeleting ? 'trash-icon-deleting' : ''} transition-transform`} />
                 </div>
             </div>
         </button>
