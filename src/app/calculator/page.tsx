@@ -262,35 +262,126 @@ function getArmorItemsByCategory(): Record<string, Array<{name: string, image: s
   };
 }
 
+// Function to get weapon items grouped by category
+function getWeaponItemsByCategory(): Record<string, Array<{name: string, image: string, categoryKey: string}>> {
+  return {
+    "Dagger": [
+      {name: "Dagger", image: "dagger", categoryKey: "Dagger"},
+      {name: "Gladius Dagger", image: "gladius_dagger", categoryKey: "Dagger"},
+      {name: "Hook", image: "hook", categoryKey: "Dagger"},
+    ],
+    "Great Sword": [
+      {name: "Crusader Sword", image: "crusader", categoryKey: "Great Sword"},
+      {name: "Long Sword", image: "long_sword", categoryKey: "Great Sword"},
+    ],
+    "Great Axe": [
+      {name: "Double Battle Axe", image: "double_battle_axe", categoryKey: "Great Axe"},
+      {name: "Scythe", image: "scythe", categoryKey: "Great Axe"},
+    ],
+    "Katana": [
+      {name: "Uchigatana", image: "uchigatana", categoryKey: "Katana"},
+      {name: "Tachi", image: "tachi", categoryKey: "Katana"},
+    ],
+    "Straight Sword": [
+      {name: "Falchion", image: "falchion", categoryKey: "Straight Sword"},
+      {name: "Cutlass", image: "cutlass", categoryKey: "Straight Sword"},
+      {name: "Rapier", image: "rapier", categoryKey: "Straight Sword"},
+      {name: "Chaos", image: "chaos", categoryKey: "Straight Sword"},
+    ],
+    "Gauntlet": [
+      {name: "Ironhand", image: "ironhand", categoryKey: "Gauntlet"},
+      {name: "Relevator", image: "relevator", categoryKey: "Gauntlet"},
+    ],
+    "Colossal Sword": [
+      {name: "Great Sword", image: "great_sword", categoryKey: "Colossal Sword"},
+      {name: "Hammer", image: "hammer", categoryKey: "Colossal Sword"},
+      {name: "Skull Crusher", image: "skull_crusher", categoryKey: "Colossal Sword"},
+      {name: "Dragon Slayer", image: "dragon_slayer", categoryKey: "Colossal Sword"},
+    ],
+  };
+}
+
 // Function to calculate individual item chance based on category chance and item ratio
-function getItemChance(itemName: string, categoryKey: string, categoryChance: number): number {
-  // Items with 1/1 ratio (100% of category chance)
-  const fullChanceItems = [
-    "Light Helmet", "Light Leggings", "Light Chestplate",
-    "Medium Helmet", "Medium Leggings", "Medium Chestplate",
-    "Knight Helmet", "Knight Leggings", "Knight Chestplate"
-  ];
-  
-  // Items with 1/2 ratio (50% of category chance)
-  const halfChanceItems = [
-    "Samurai Helmet", "Samurai Leggings", "Samurai Chestplate",
-    "Dark Knight Helmet", "Dark Knight Leggings", "Dark Knight Chestplate"
-  ];
-  
-  if (fullChanceItems.includes(itemName)) {
-    return categoryChance * 1.0; // 1/1 = 100%
-  } else if (halfChanceItems.includes(itemName)) {
-    return categoryChance * 0.5; // 1/2 = 50%
+function getItemChance(itemName: string, categoryKey: string, categoryChance: number, craftType: "Weapon" | "Armor" = "Armor"): { chance: number, ratio: string } {
+  if (craftType === "Armor") {
+    // Items with 1/1 ratio (100% of category chance)
+    const fullChanceItems = [
+      "Light Helmet", "Light Leggings", "Light Chestplate",
+      "Medium Helmet", "Medium Leggings", "Medium Chestplate",
+      "Knight Helmet", "Knight Leggings", "Knight Chestplate"
+    ];
+    
+    // Items with 1/2 ratio (50% of category chance)
+    const halfChanceItems = [
+      "Samurai Helmet", "Samurai Leggings", "Samurai Chestplate",
+      "Dark Knight Helmet", "Dark Knight Leggings", "Dark Knight Chestplate"
+    ];
+    
+    if (fullChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 1.0, ratio: "1/1" }; // 1/1 = 100%
+    } else if (halfChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 0.5, ratio: "1/2" }; // 1/2 = 50%
+    }
+  } else if (craftType === "Weapon") {
+    // Weapons with 1/1 ratio (100% of category chance)
+    const fullChanceItems = [
+      "Dagger", "Crusader Sword", "Double Battle Axe", "Uchigatana", 
+      "Falchion", "Ironhand", "Great Sword"
+    ];
+    
+    // Weapons with 1/2 ratio (50% of category chance)
+    const halfChanceItems = [
+      "Long Sword", "Cutlass"
+    ];
+    
+    // Weapons with 1/4 ratio (25% of category chance)
+    const quarterChanceItems = [
+      "Gladius Dagger", "Scythe", "Tachi", "Rapier", "Relevator", "Hammer"
+    ];
+    
+    // Weapons with 1/8 ratio (12.5% of category chance)
+    const eighthChanceItems = [
+      "Skull Crusher"
+    ];
+    
+    // Weapons with 1/16 ratio (6.25% of category chance)
+    const sixteenthChanceItems = [
+      "Hook", "Chaos", "Dragon Slayer"
+    ];
+    
+    if (fullChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 1.0, ratio: "1/1" };
+    } else if (halfChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 0.5, ratio: "1/2" };
+    } else if (quarterChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 0.25, ratio: "1/4" };
+    } else if (eighthChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 0.125, ratio: "1/8" };
+    } else if (sixteenthChanceItems.includes(itemName)) {
+      return { chance: categoryChance * 0.0625, ratio: "1/16" };
+    }
   }
   
-  return 0;
+  return { chance: 0, ratio: "0/0" };
 }
 
 // Function to get possible item images with their chances for a category
-function getPossibleItemImagesWithChances(categoryName: string, categoryChance: number, craftType: "Weapon" | "Armor"): Array<{image: string, ratio: string}> {
+function getPossibleItemImagesWithChances(categoryName: string, categoryChance: number, craftType: "Weapon" | "Armor"): Array<{image: string, ratio: string, name: string, chance: number}> {
   if (craftType === "Weapon") {
-    // For weapons, don't return images since they don't exist yet - prevents unnecessary requests
-    return [];
+    // For weapons, return all variations with their ratios
+    const weaponByCategory = getWeaponItemsByCategory();
+    const allItems = Object.values(weaponByCategory).flat();
+    const categoryItems = allItems.filter(item => item.categoryKey === categoryName);
+    
+    return categoryItems.map(item => {
+      const { chance, ratio } = getItemChance(item.name, item.categoryKey, categoryChance, "Weapon");
+      return {
+        image: `/weapons/${item.image}.png`,
+        ratio: ratio,
+        name: item.name,
+        chance: chance
+      };
+    });
   } else {
     // For armor, return all variations with their ratios
     const armorByCategory = getArmorItemsByCategory();
@@ -298,11 +389,12 @@ function getPossibleItemImagesWithChances(categoryName: string, categoryChance: 
     const categoryItems = allItems.filter(item => item.categoryKey === categoryName);
     
     return categoryItems.map(item => {
-      const itemChance = getItemChance(item.name, item.categoryKey, categoryChance);
-      const ratio = itemChance === categoryChance ? "1/1" : "1/2";
+      const { chance, ratio } = getItemChance(item.name, item.categoryKey, categoryChance, "Armor");
       return {
         image: `/items/${item.image}.png`,
-        ratio: ratio
+        ratio: ratio,
+        name: item.name,
+        chance: chance
       };
     });
   }
@@ -361,7 +453,7 @@ const failedImageCache = new Set<string>();
 const loadedImageCache = new Set<string>();
 
   // Component for Predicted Item Image - memoized to prevent unnecessary re-renders
-  const PredictedItemImage = memo(({ image, ratio, alt }: { image: string, ratio: string, alt: string }) => {
+  const PredictedItemImage = memo(({ image, ratio, alt, name, chance }: { image: string, ratio: string, alt: string, name?: string, chance?: number }) => {
     // Check cache first - if failed, don't render anything
     if (failedImageCache.has(image)) {
       return null;
@@ -373,15 +465,23 @@ const loadedImageCache = new Set<string>();
     // If already loaded, show it immediately
     if (loadedImageCache.has(image)) {
       return (
-        <div className="flex flex-col items-center">
+        <div className="group relative flex flex-col items-center">
           <img 
             src={image} 
             alt={alt}
-            className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80"
+            className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
           />
           <span className="text-[8px] sm:text-[9px] text-white mt-0.5 font-medium">
             {ratio}
           </span>
+          {/* Tooltip on hover */}
+          {name && chance !== undefined && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900/95 border border-zinc-600 rounded-sm text-white text-[9px] sm:text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out pointer-events-none z-50 shadow-lg">
+              <div className="font-semibold text-zinc-100">{name}</div>
+              <div className="text-green-400 font-medium">{(chance * 100).toFixed(2)}%</div>
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-600"></div>
+            </div>
+          )}
         </div>
       );
     }
@@ -402,11 +502,11 @@ const loadedImageCache = new Set<string>();
     }
     
     return (
-      <div className="flex flex-col items-center">
+      <div className="group relative flex flex-col items-center">
         <img 
           src={image} 
           alt={alt}
-          className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80"
+          className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
           onLoad={handleLoad}
           onError={handleError}
           loading="lazy"
@@ -415,6 +515,14 @@ const loadedImageCache = new Set<string>();
           <span className="text-[8px] sm:text-[9px] text-white mt-0.5 font-medium">
             {ratio}
           </span>
+        )}
+        {/* Tooltip on hover */}
+        {name && chance !== undefined && imageLoaded && !imageError && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900/95 border border-zinc-600 rounded-sm text-white text-[9px] sm:text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out pointer-events-none z-50 shadow-lg">
+            <div className="font-semibold text-zinc-100">{name}</div>
+            <div className="text-green-400 font-medium">{(chance * 100).toFixed(2)}%</div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-600"></div>
+          </div>
         )}
       </div>
     );
@@ -726,6 +834,8 @@ const loadedImageCache = new Set<string>();
                             image={item.image}
                             ratio={item.ratio}
                             alt={`${predictedItem?.type || 'item'} variation`}
+                            name={item.name}
+                            chance={item.chance}
                         />
                     ))}
                 </div>
@@ -898,8 +1008,7 @@ const loadedImageCache = new Set<string>();
                             // Process each category and group by categoryKey
                             Object.values(armorByCategory).flat().forEach(item => {
                                 const categoryChance = results?.odds?.[item.categoryKey] || 0;
-                                const itemChance = getItemChance(item.name, item.categoryKey, categoryChance);
-                                const ratio = itemChance === categoryChance ? "1/1" : "1/2";
+                                const { chance, ratio } = getItemChance(item.name, item.categoryKey, categoryChance, "Armor");
                                 
                                 if (!categoryGroups[item.categoryKey]) {
                                     categoryGroups[item.categoryKey] = [];
@@ -908,7 +1017,7 @@ const loadedImageCache = new Set<string>();
                                 categoryGroups[item.categoryKey].push({
                                     name: item.name,
                                     image: `/items/${item.image}.png`,
-                                    chance: itemChance,
+                                    chance: chance,
                                     ratio: ratio
                                 });
                             });
@@ -940,20 +1049,26 @@ const loadedImageCache = new Set<string>();
                                         </div>
                                         
                                         {/* Variation Slots */}
-                                        <div className="flex gap-1.5 sm:gap-2 mb-1">
+                                        <div className={`bg-zinc-800/50 border border-zinc-700 rounded-sm p-1.5 sm:p-2 mb-1 flex gap-1.5 sm:gap-2 ${category.categoryChance > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}>
                                             {category.items.map((item, itemIndex) => (
                                                 <div 
                                                     key={item.name}
-                                                    className={`flex-1 h-8 sm:h-10 md:h-12 bg-zinc-800/50 border border-zinc-700 rounded-sm flex flex-col items-center justify-center relative overflow-hidden ${category.categoryChance > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}
+                                                    className="group flex-1 h-8 sm:h-10 md:h-12 flex flex-col items-center justify-center relative overflow-visible"
                                                 >
                                                     <img 
                                                         src={item.image} 
                                                         alt={item.name}
-                                                        className="w-full h-full object-contain opacity-80 p-1"
+                                                        className="w-full h-full object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
                                                     />
-                                                    <span className="absolute bottom-0.5 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
+                                                    <span className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
                                                         {item.ratio}
                                                     </span>
+                                                    {/* Tooltip on hover */}
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900/95 border border-zinc-600 rounded-sm text-white text-[9px] sm:text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out pointer-events-none z-50 shadow-lg">
+                                                        <div className="font-semibold text-zinc-100">{item.name}</div>
+                                                        <div className="text-green-400 font-medium">{(item.chance * 100).toFixed(2)}%</div>
+                                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-600"></div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -968,40 +1083,91 @@ const loadedImageCache = new Set<string>();
                                     </div>
                                 );
                             });
-                        })() : (
-                            // For Weapons: Show as is
-                            currentTypes
-                                .map(type => ({ 
-                                    type, 
-                                    pct: results?.odds?.[type] || 0,
-                                    bestCount: getBestOreCountForItem(type, craftType)
+                        })() : (() => {
+                            // For Weapons: Group items by categoryKey (Dagger, Great Sword, etc.)
+                            const weaponByCategory = getWeaponItemsByCategory();
+                            const categoryGroups: Record<string, Array<{name: string, image: string, chance: number, ratio: string}>> = {};
+                            
+                            // Process each category and group by categoryKey
+                            Object.values(weaponByCategory).flat().forEach(item => {
+                                const categoryChance = results?.odds?.[item.categoryKey] || 0;
+                                const { chance, ratio } = getItemChance(item.name, item.categoryKey, categoryChance, "Weapon");
+                                
+                                if (!categoryGroups[item.categoryKey]) {
+                                    categoryGroups[item.categoryKey] = [];
+                                }
+                                
+                                categoryGroups[item.categoryKey].push({
+                                    name: item.name,
+                                    image: `/weapons/${item.image}.png`,
+                                    chance: chance,
+                                    ratio: ratio
+                                });
+                            });
+                            
+                            // Convert to array and sort by total category chance
+                            const sortedCategories = Object.entries(categoryGroups)
+                                .map(([categoryKey, items]) => ({
+                                    categoryKey,
+                                    categoryChance: results?.odds?.[categoryKey] || 0,
+                                    items: items.sort((a, b) => b.chance - a.chance)
                                 }))
-                                .sort((a, b) => b.pct - a.pct)
-                                .map(({ type, pct, bestCount }, index) => {
-                                const isNewTop = index === 0 && topItemChanged && type !== previousTopItem && pct > 0;
-                                const itemImage = `/items/${type.toLowerCase().replace(/\s+/g, '_')}.png`;
+                                .sort((a, b) => b.categoryChance - a.categoryChance);
+                            
+                            return sortedCategories.map((category, catIndex) => {
+                                const isNewTop = catIndex === 0 && topItemChanged && category.categoryKey !== previousTopItem && category.categoryChance > 0;
                                 return (
                                     <div 
-                                        key={type} 
+                                        key={category.categoryKey} 
                                         className={`opacity-90 transition-all duration-300 ${
                                             isNewTop ? 'top-item-animation' : ''
                                         }`}
                                     >
-                                        <div className="flex justify-between items-center mb-0.5 sm:mb-1">
-                                             <span className="text-zinc-400 text-xs sm:text-sm truncate pr-2">{type}</span>
-                                             <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${pct > 0 ? 'text-green-400' : 'text-zinc-600'}`}>{(pct * 100).toFixed(0)}%</span>
+                                        {/* Category Header */}
+                                        <div className="flex justify-between items-center mb-1 sm:mb-1.5">
+                                            <span className="text-zinc-300 text-xs sm:text-sm font-medium">{category.categoryKey}</span>
+                                            <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${category.categoryChance > 0 ? 'text-green-400' : 'text-zinc-600'}`}>
+                                                ({(category.categoryChance * 100).toFixed(0)}%)
+                                            </span>
                                         </div>
-                                        <div className={`h-8 sm:h-10 md:h-12 bg-zinc-800/50 border border-zinc-700 rounded-sm flex items-center justify-center relative overflow-hidden ${pct > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}>
-                                            <span className="text-[9px] sm:text-[10px] md:text-xs text-zinc-400">Best: {bestCount} ores</span>
+                                        
+                                        {/* Variation Slots */}
+                                        <div className={`bg-zinc-800/50 border border-zinc-700 rounded-sm p-1.5 sm:p-2 mb-1 flex gap-1.5 sm:gap-2 ${category.categoryChance > 0 ? 'border-green-900/50 bg-green-900/10' : ''}`}>
+                                            {category.items.map((item, itemIndex) => (
+                                                <div 
+                                                    key={item.name}
+                                                    className="group flex-1 h-8 sm:h-10 md:h-12 flex flex-col items-center justify-center relative overflow-visible"
+                                                >
+                                                    <img 
+                                                        src={item.image} 
+                                                        alt={item.name}
+                                                        className="w-full h-full object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+                                                        loading="lazy"
+                                                    />
+                                                    <span className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
+                                                        {item.ratio}
+                                                    </span>
+                                                    {/* Tooltip on hover */}
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900/95 border border-zinc-600 rounded-sm text-white text-[9px] sm:text-[10px] whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out pointer-events-none z-50 shadow-lg">
+                                                        <div className="font-semibold text-zinc-100">{item.name}</div>
+                                                        <div className="text-green-400 font-medium">{(item.chance * 100).toFixed(2)}%</div>
+                                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-zinc-600"></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        {/* Single progress bar for the category */}
+                                        <div className="h-0.5 sm:h-1 bg-zinc-700 rounded-full overflow-hidden">
                                             <div 
-                                                className="absolute bottom-0 left-0 h-0.5 sm:h-1 bg-green-500 transition-all duration-300 ease-out" 
-                                                style={{ width: `${pct * 100}%` }} 
+                                                className="h-full bg-green-500 transition-all duration-300 ease-out" 
+                                                style={{ width: `${category.categoryChance * 100}%` }} 
                                             />
                                         </div>
                                     </div>
                                 );
-                            })
-                        )}
+                            });
+                        })()}
                     </div>
                 </div>
 
