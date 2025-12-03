@@ -6,17 +6,20 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 const archivoBlack = Archivo_Black({
   weight: "400",
   variable: "--font-archivo-black",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://theforge.squareweb.app';

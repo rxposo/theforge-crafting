@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 // Removed forgecalc.css import to use Tailwind completely
 
 import oresDataRaw from '../../data/ores.json';
@@ -21,9 +22,18 @@ function useIsMobile(breakpoint: number = 1024) {
     // Initial check
     checkMobile();
     
-    // Listen for resize events
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // Debounced resize handler
+    let timeoutId: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(checkMobile, 150); // Debounce de 150ms
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
   }, [breakpoint]);
   
   return isMobile;
@@ -500,11 +510,15 @@ const loadedImageCache = new Set<string>();
     if (loadedImageCache.has(image)) {
       return (
         <div className="group relative flex flex-col items-center">
-          <img 
-            src={image} 
-            alt={alt}
-            className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
-          />
+          <div className="relative h-8 sm:h-10 md:h-12 w-auto">
+            <Image 
+              src={image} 
+              alt={alt}
+              width={48}
+              height={48}
+              className="object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+            />
+          </div>
           <span className="text-[8px] sm:text-[9px] text-white mt-0.5 font-medium">
             {ratio}
           </span>
@@ -537,14 +551,18 @@ const loadedImageCache = new Set<string>();
     
     return (
       <div className="group relative flex flex-col items-center">
-        <img 
-          src={image} 
-          alt={alt}
-          className="h-8 sm:h-10 md:h-12 w-auto object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
-          onLoad={handleLoad}
-          onError={handleError}
-          loading="lazy"
-        />
+        <div className="relative h-8 sm:h-10 md:h-12 w-auto">
+          <Image 
+            src={image} 
+            alt={alt}
+            width={48}
+            height={48}
+            className="object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+            onLoad={handleLoad}
+            onError={handleError}
+            loading="lazy"
+          />
+        </div>
         {imageLoaded && !imageError && (
           <span className="text-[8px] sm:text-[9px] text-white mt-0.5 font-medium">
             {ratio}
@@ -602,7 +620,7 @@ const loadedImageCache = new Set<string>();
   };
 
   // Component for Slot Button to handle its own state cleanly
-  const SlotButton = ({ slot, index, onRemoveOne, onRemoveAll, isMobile = false }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void, isMobile?: boolean }) => {
+  const SlotButton = memo(({ slot, index, onRemoveOne, onRemoveAll, isMobile = false }: { slot: SlotItem | null, index: number, onRemoveOne: (i: number) => void, onRemoveAll: (i: number) => void, isMobile?: boolean }) => {
       const [isHolding, setIsHolding] = useState(false);
       const [progress, setProgress] = useState(0);
       const [isDeleting, setIsDeleting] = useState(false);
@@ -755,7 +773,7 @@ const loadedImageCache = new Set<string>();
         setTimeout(() => {
           deleteCallback();
           setIsDeleting(false);
-        }, 200); // Match animation duration
+        }, 100); // Match animation duration
       };
       
       return (
@@ -776,10 +794,11 @@ const loadedImageCache = new Set<string>();
             <div className={`slot-content w-full h-full absolute inset-0`}>
               {oreImage ? (
                   <>
-                      <img 
+                      <Image 
                           src={oreImage} 
                           alt={slot.name}
-                          className="w-full h-full object-cover absolute inset-0 opacity-80"
+                          fill
+                          className="object-cover opacity-80"
                       />
                       <div className={`absolute inset-0 ${RarityBg[ores[slot.name].rarity]} opacity-30`} />
                   </>
@@ -805,10 +824,18 @@ const loadedImageCache = new Set<string>();
             </div>
         </button>
       );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for memo
+    return (
+      prevProps.index === nextProps.index &&
+      prevProps.isMobile === nextProps.isMobile &&
+      prevProps.slot?.name === nextProps.slot?.name &&
+      prevProps.slot?.count === nextProps.slot?.count
+    );
+  });
 
   // Component for Ore Button with click animation
-  const OreButton = ({ 
+  const OreButton = memo(({ 
     oreName, 
     data, 
     oreImage, 
@@ -836,10 +863,11 @@ const loadedImageCache = new Set<string>();
         >
             {oreImage ? (
                 <>
-                    <img 
+                    <Image 
                         src={oreImage} 
                         alt={oreName}
-                        className={`object-cover absolute inset-0 opacity-80 ${isMobile ? 'w-full h-full' : 'w-full h-full'}`}
+                        fill
+                        className="object-cover opacity-80"
                     />
                     <div className={`absolute inset-0 ${RarityBg[data.rarity]} opacity-30`} />
                 </>
@@ -864,7 +892,16 @@ const loadedImageCache = new Set<string>();
             }`}>{data.multiplier}x</span>
         </button>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for memo
+    return (
+      prevProps.oreName === nextProps.oreName &&
+      prevProps.isMobile === nextProps.isMobile &&
+      prevProps.data.multiplier === nextProps.data.multiplier &&
+      prevProps.data.rarity === nextProps.data.rarity &&
+      prevProps.oreImage === nextProps.oreImage
+    );
+  });
 
   // Component for Predicted Item Display to handle its own animation logic
   const PredictedItemDisplay = ({
@@ -1007,7 +1044,6 @@ const loadedImageCache = new Set<string>();
   export default function Calculator() {
   const [slots, setSlots] = useState<(SlotItem | null)[]>([null, null, null, null]);
   const [craftType, setCraftType] = useState<"Weapon" | "Armor">("Weapon");
-  const [results, setResults] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [previousTopItem, setPreviousTopItem] = useState<string | null>(null);
   const [topItemChanged, setTopItemChanged] = useState(false);
@@ -1034,8 +1070,8 @@ const loadedImageCache = new Set<string>();
       });
   }, [searchTerm]);
 
-  // Calculate results whenever slots or craftType changes
-  useEffect(() => {
+  // Calculate results whenever slots or craftType changes - memoized for performance
+  const results = useMemo(() => {
     const selected: Record<string, number> = {};
     let count = 0;
     slots.forEach(slot => {
@@ -1046,17 +1082,22 @@ const loadedImageCache = new Set<string>();
     });
 
     if (count === 0) {
-        setResults(null);
-        setPreviousTopItem(null);
-        return;
+        return null;
     }
 
-    const computed = getItemChancesWithTraits(selected, craftType);
-    
-    // Track top item for animation
+    return getItemChancesWithTraits(selected, craftType);
+  }, [slots, craftType]);
+
+  // Track top item for animation
+  useEffect(() => {
+    if (!results) {
+      setPreviousTopItem(null);
+      return;
+    }
+
     const types = craftType === "Weapon" ? WEAPON_TYPES : ARMOR_TYPES;
     const sortedItems = types
-      .map(type => ({ type, pct: computed.odds?.[type] || 0 }))
+      .map(type => ({ type, pct: results.odds?.[type] || 0 }))
       .sort((a, b) => b.pct - a.pct);
     const currentTopItem = sortedItems[0]?.type || null;
     
@@ -1067,8 +1108,7 @@ const loadedImageCache = new Set<string>();
     }
     
     setPreviousTopItem(currentTopItem);
-    setResults(computed);
-  }, [slots, craftType]);
+  }, [results, craftType, previousTopItem]);
 
   // Handle traits fade-out animation
   useEffect(() => {
@@ -1096,50 +1136,56 @@ const loadedImageCache = new Set<string>();
     previousTraitsLengthRef.current = currentTraitsLength;
   }, [results?.traits]);
 
-  const addOreToSlot = (oreName: string) => {
-    // Check if ore exists in a slot
-    const existingIndex = slots.findIndex(s => s?.name === oreName);
-    
-    if (existingIndex !== -1) {
+  const addOreToSlot = useCallback((oreName: string) => {
+    setSlots(prev => {
+      // Check if ore exists in a slot
+      const existingIndex = prev.findIndex(s => s?.name === oreName);
+      
+      if (existingIndex !== -1) {
         // Increment count
-        const newSlots = [...slots];
+        const newSlots = [...prev];
         const current = newSlots[existingIndex]!;
         newSlots[existingIndex] = { ...current, count: current.count + 1 };
-        setSlots(newSlots);
-        return;
-    }
+        return newSlots;
+      }
 
-    // Find first empty slot
-    const emptyIndex = slots.findIndex(s => s === null);
-    if (emptyIndex !== -1) {
-        const newSlots = [...slots];
+      // Find first empty slot
+      const emptyIndex = prev.findIndex(s => s === null);
+      if (emptyIndex !== -1) {
+        const newSlots = [...prev];
         newSlots[emptyIndex] = { name: oreName, count: 1 };
-        setSlots(newSlots);
-    }
-  };
+        return newSlots;
+      }
+      return prev;
+    });
+  }, []);
 
-  const removeOneOreFromSlot = (index: number) => {
-      const newSlots = [...slots];
+  const removeOneOreFromSlot = useCallback((index: number) => {
+    setSlots(prev => {
+      const newSlots = [...prev];
       const slot = newSlots[index];
       if (slot) {
-          if (slot.count > 1) {
-              newSlots[index] = { ...slot, count: slot.count - 1 };
-          } else {
-              newSlots[index] = null;
-          }
-          setSlots(newSlots);
+        if (slot.count > 1) {
+          newSlots[index] = { ...slot, count: slot.count - 1 };
+        } else {
+          newSlots[index] = null;
+        }
       }
-  };
+      return newSlots;
+    });
+  }, []);
 
-  const removeAllOresFromSlot = (index: number) => {
-      const newSlots = [...slots];
+  const removeAllOresFromSlot = useCallback((index: number) => {
+    setSlots(prev => {
+      const newSlots = [...prev];
       newSlots[index] = null;
-      setSlots(newSlots);
-  };
+      return newSlots;
+    });
+  }, []);
 
-  const clearAll = () => {
-      setSlots([null, null, null, null]);
-  };
+  const clearAll = useCallback(() => {
+    setSlots([null, null, null, null]);
+  }, []);
 
   const currentTypes = craftType === "Weapon" ? WEAPON_TYPES : ARMOR_TYPES;
 
@@ -1147,11 +1193,14 @@ const loadedImageCache = new Set<string>();
     <div className="min-h-screen text-zinc-100 selection:bg-orange-500/30 relative overflow-hidden font-sans">
       {/* Background Image Container */}
       <div className="fixed inset-0 -z-20">
-         <img 
+         <Image 
             src="/forge.png"
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
             style={{ opacity: 0.4 }}
+            priority
+            quality={85}
          />
       </div>
       
@@ -1267,11 +1316,14 @@ const loadedImageCache = new Set<string>();
                                                     key={item.name}
                                                     className="group flex-1 h-8 sm:h-10 md:h-12 flex flex-col items-center justify-center relative overflow-visible"
                                                 >
-                                                    <img 
-                                                        src={item.image} 
-                                                        alt={item.name}
-                                                        className="w-full h-full object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
-                                                    />
+                                                    <div className="relative w-full h-full">
+                                                      <Image 
+                                                          src={item.image} 
+                                                          alt={item.name}
+                                                          fill
+                                                          className="object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+                                                      />
+                                                    </div>
                                                     <span className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
                                                         {item.ratio}
                                                     </span>
@@ -1350,12 +1402,15 @@ const loadedImageCache = new Set<string>();
                                                     key={item.name}
                                                     className="group flex-1 h-8 sm:h-10 md:h-12 flex flex-col items-center justify-center relative overflow-visible"
                                                 >
-                                                    <img 
-                                                        src={item.image} 
-                                                        alt={item.name}
-                                                        className="w-full h-full object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
-                                                        loading="lazy"
-                                                    />
+                                                    <div className="relative w-full h-full">
+                                                      <Image 
+                                                          src={item.image} 
+                                                          alt={item.name}
+                                                          fill
+                                                          className="object-contain opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+                                                          loading="lazy"
+                                                      />
+                                                    </div>
                                                     <span className="absolute bottom-0 left-0 right-0 text-[8px] sm:text-[9px] text-white text-center font-medium">
                                                         {item.ratio}
                                                     </span>

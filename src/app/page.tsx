@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Simple Icons components (SVG)
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -33,11 +34,14 @@ export default function Home() {
     <div className="min-h-screen text-zinc-100 selection:bg-orange-500/30 relative overflow-hidden">
       {/* Background Image Container */}
       <div className="fixed inset-0 -z-20">
-         <img 
+         <Image 
             src="/gamethumb.png"
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
             style={{ opacity: 0.4 }}
+            priority
+            quality={85}
          />
       </div>
       
