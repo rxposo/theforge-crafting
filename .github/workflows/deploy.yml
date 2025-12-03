@@ -33,6 +33,7 @@ jobs:
         run: |
           zip -r project.zip \
             package.json \
+            package-lock.json \
             .next \
             next.config.ts \
             postcss.config.mjs \
